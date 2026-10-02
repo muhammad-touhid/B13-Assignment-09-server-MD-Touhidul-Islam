@@ -1,6 +1,7 @@
 const express = require("express");
+
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const dotenv = require("dotenv");
 dotenv.config();
 
@@ -25,6 +26,7 @@ async function run() {
 
     const database = client.db("godrive");
     const carsCollection = database.collection("cars");
+    const bookingsCollection = database.collection("bookings");
 
     app.get("/cars", async (req, res) => {
       const result = await carsCollection.find({});
@@ -35,6 +37,30 @@ async function run() {
     app.post("/cars", async (req, res) => {
       const carData = req.body;
       const result = await carsCollection.insertOne(carData);
+      res.json(result);
+    });
+
+    app.get("/cars/:id", async (req, res) => {
+      const { id } = req.params;
+      const result = await carsCollection.findOne({ _id: new ObjectId(id) });
+      res.json(result);
+    });
+
+    app.get("/bookings/:userId", async (req, res) => {
+      const { userId } = req.params;
+      const result = await bookingsCollection.find({ userId }).toArray();
+      res.json(result);
+    });
+
+    app.delete("/bookings/:userId", async (req, res) => {
+      const { userId } = req.params;
+      const result = await bookingsCollection.deleteOne({ userId });
+      res.json(result);
+    });
+
+    app.post("/bookings", async (req, res) => {
+      const bookingData = req.body;
+      const result = await bookingsCollection.insertOne(bookingData);
       res.json(result);
     });
 
