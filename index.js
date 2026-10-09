@@ -109,6 +109,16 @@ app.get("/test-cars", (req, res) => {
   res.send("Test cars route is working!");
 });
 
+app.get("/test-db", async (req, res) => {
+  try {
+    await client.connect();
+    res.send("MongoDB connection successful!");
+  } catch (error) {
+    console.error("MongoDB connection failed:", error);
+    res.status(500).send("MongoDB connection failed. Check runtime logs.");
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
