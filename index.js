@@ -51,6 +51,7 @@ async function run() {
     const carsCollection = database.collection("cars");
     const bookingsCollection = database.collection("bookings");
 
+    console.log("Registering /cars route");
     app.get("/cars", async (req, res) => {
       const result = await carsCollection.find({});
       const cars = await result.toArray();
@@ -103,10 +104,6 @@ app.get("/", (req, res) => {
   res.send("Hello, World!");
 });
 
-if (require.main === module) {
-  app.listen(port, () => {
-    console.log(`Server is running on http://localhost:${port}`);
-  });
-}
-
-module.exports = app;
+app.listen(port, () => {
+  console.log(`Server is running on http://localhost:${port}`);
+});
