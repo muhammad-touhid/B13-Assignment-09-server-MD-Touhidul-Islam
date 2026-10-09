@@ -45,14 +45,12 @@ const verifyToken = async (req, res, next) => {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    console.log("MongoDB connected successfully on Vercel");
+    // await client.connect();
 
     const database = client.db("godrive");
     const carsCollection = database.collection("cars");
     const bookingsCollection = database.collection("bookings");
 
-    console.log("Registering /cars route");
     app.get("/cars", async (req, res) => {
       const result = await carsCollection.find({});
       const cars = await result.toArray();
@@ -107,16 +105,6 @@ app.get("/", (req, res) => {
 
 app.get("/test-cars", (req, res) => {
   res.send("Test cars route is working!");
-});
-
-app.get("/test-db", async (req, res) => {
-  try {
-    await client.connect();
-    res.send("MongoDB connection successful!");
-  } catch (error) {
-    console.error("MongoDB connection failed:", error);
-    res.status(500).send("MongoDB connection failed. Check runtime logs.");
-  }
 });
 
 app.listen(port, () => {
