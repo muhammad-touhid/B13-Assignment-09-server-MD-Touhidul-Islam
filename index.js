@@ -103,10 +103,6 @@ app.get("/", (req, res) => {
   res.send("Hello, World!");
 });
 
-app.get("/test-cars", (req, res) => {
-  res.send("Test cars route is working!");
-});
-
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
