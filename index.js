@@ -51,6 +51,15 @@ async function run() {
     const carsCollection = database.collection("cars");
     const bookingsCollection = database.collection("bookings");
 
+    app.get("/available-cars", async (req, res) => {
+      const result = await carsCollection
+        .find({ availabilityStatus: "Available" })
+        .limit(6)
+        .toArray();
+
+      res.json(result);
+    });
+
     app.get("/cars", async (req, res) => {
       const result = await carsCollection.find({});
       const cars = await result.toArray();
