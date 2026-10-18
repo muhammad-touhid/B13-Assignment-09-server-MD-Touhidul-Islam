@@ -43,68 +43,121 @@ const verifyToken = async (req, res, next) => {
 };
 
 async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+  const database = client.db("godrive");
+  const carsCollection = database.collection("cars");
+  const bookingsCollection = database.collection("bookings");
 
-    const database = client.db("godrive");
-    const carsCollection = database.collection("cars");
-    const bookingsCollection = database.collection("bookings");
-
-    app.get("/available-cars", async (req, res) => {
-      const result = await carsCollection
+  app.get("/available-cars", async (req, res) => {
+    try {
+      const cars = await carsCollection
         .find({ availabilityStatus: "Available" })
         .limit(6)
         .toArray();
 
-      res.json(result);
-    });
-
-    app.get("/cars", async (req, res) => {
-      const result = await carsCollection.find({});
-      const cars = await result.toArray();
       res.json(cars);
-    });
+    } catch (error) {
+      console.error("Available cars error:", error);
+      res.status(500).json({ message: "Failed to fetch available cars" });
+    }
+  });
 
-    app.post("/cars", async (req, res) => {
-      const carData = req.body;
-      const result = await carsCollection.insertOne(carData);
+  app.get("/cars", async (req, res) => {
+    try {
+      const cars = await carsCollection.find({}).toArray();
+      res.json(cars);
+    } catch (error) {
+      console.error("Fetch cars error:", error);
+      res.status(500).json({ message: "Failed to fetch cars" });
+    }
+  });
+
+  app.post("/cars", async (req, res) => {
+    try {
+      const result = await carsCollection.insertOne(req.body);
       res.json(result);
-    });
+    } catch (error) {
+      console.error("Add car error:", error);
+      res.status(500).json({ message: "Failed to add car" });
+    }
+  });
 
-    app.get("/cars/:id", verifyToken, async (req, res) => {
-      const { id } = req.params;
-      const result = await carsCollection.findOne({ _id: new ObjectId(id) });
+  app.get("/cars/:id", verifyToken, async (req, res) => {
+    try {
+      const car = await carsCollection.findOne({
+        _id: new ObjectId(req.params.id),
+      });
+
+      if (!car) {
+        return res.status(404).json({ message: "Car not found" });
+      }
+
+      res.json(car);
+    } catch (error) {
+      console.error("Car details error:", error);
+      res.status(500).json({ message: "Failed to fetch car details" });
+    }
+  });
+
+  app.get("/bookings/:userId", async (req, res) => {
+    try {
+      const bookings = await bookingsCollection
+        .find({ userId: req.params.userId })
+        .toArray();
+
+      res.json(bookings);
+    } catch (error) {
+      console.error("Fetch bookings error:", error);
+      res.status(500).json({ message: "Failed to fetch bookings" });
+    }
+  });
+
+  app.delete("/bookings/:userId", async (req, res) => {
+    try {
+      const result = await bookingsCollection.deleteOne({
+        userId: req.params.userId,
+      });
+
       res.json(result);
-    });
+    } catch (error) {
+      console.error("Delete booking error:", error);
+      res.status(500).json({ message: "Failed to delete booking" });
+    }
+  });
 
-    app.get("/bookings/:userId", async (req, res) => {
-      const { userId } = req.params;
-      const result = await bookingsCollection.find({ userId }).toArray();
+  app.post("/bookings", verifyToken, async (req, res) => {
+    try {
+      const result = await bookingsCollection.insertOne(req.body);
       res.json(result);
-    });
+    } catch (error) {
+      console.error("Create booking error:", error);
+      res.status(500).json({ message: "Failed to create booking" });
+    }
+  });
 
-    app.delete("/bookings/:userId", async (req, res) => {
-      const { userId } = req.params;
-      const result = await bookingsCollection.deleteOne({ userId });
-      res.json(result);
-    });
+  app.get("/", (req, res) => {
+    res.send("Hello, World!");
+  });
 
-    app.post("/bookings", verifyToken, async (req, res) => {
-      const bookingData = req.body;
-      const result = await bookingsCollection.insertOne(bookingData);
-      res.json(result);
-    });
+  // Connect once for this server instance.
+  const connectPromise = client.connect();
 
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log(
-      "Pinged your deployment. You successfully connected to MongoDB!",
-    );
-  } finally {
-    // Ensures that the client will close when you finish/error
-    // await client.close();
+  app.use(async (req, res, next) => {
+    try {
+      await connectPromise;
+      next();
+    } catch (error) {
+      console.error("MongoDB connection error:", error);
+      res.status(500).json({ message: "Database connection failed" });
+    }
+  });
+
+  if (require.main === module) {
+    app.listen(port, () => {
+      console.log(`Server is running on http://localhost:${port}`);
+    });
   }
+
+  module.exports = app;
 }
 run().catch(console.dir);
 
