@@ -25,17 +25,23 @@ const JWKS = createRemoteJWKSet(
 );
 
 const verifyToken = async (req, res, next) => {
-  const authHeader = req?.headers.authorization;
+  const authHeader = req.headers.authorization;
+
   if (!authHeader) {
     return res.status(401).json({ message: "Unauthorized access" });
   }
+
   const token = authHeader.split(" ")[1];
+
   if (!token) {
     return res.status(401).json({ message: "Unauthorized access" });
   }
 
   try {
     const { payload } = await jwtVerify(token, JWKS);
+
+    req.user = payload;
+
     next();
   } catch (error) {
     return res.status(401).json({ message: "Unauthorized access" });
@@ -71,13 +77,29 @@ async function run() {
     }
   });
 
-  app.post("/cars", async (req, res) => {
+  app.post("/cars", verifyToken, async (req, res) => {
     try {
-      const result = await carsCollection.insertOne(req.body);
-      res.json(result);
+      const carData = {
+        ...req.body,
+        userId: req.user.sub,
+      };
+      const result = await carsCollection.insertOne(carData);
+      res.status(201).json(result);
     } catch (error) {
       console.error("Add car error:", error);
       res.status(500).json({ message: "Failed to add car" });
+    }
+  });
+  app.get("/my-cars", verifyToken, async (req, res) => {
+    try {
+      const cars = await carsCollection
+        .find({ userId: req.user.sub })
+        .toArray();
+
+      res.json(cars);
+    } catch (error) {
+      console.error("My cars error:", error);
+      res.status(500).json({ message: "Failed to fetch your cars" });
     }
   });
 
@@ -95,6 +117,77 @@ async function run() {
     } catch (error) {
       console.error("Car details error:", error);
       res.status(500).json({ message: "Failed to fetch car details" });
+    }
+  });
+
+  app.patch("/cars/:id", verifyToken, async (req, res) => {
+    try {
+      if (!ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ message: "Invalid car ID" });
+      }
+
+      const {
+        dailyRentPrice,
+        description,
+        availabilityStatus,
+        imageUrl,
+        carType,
+        pickupLocation,
+      } = req.body;
+
+      const updateData = {
+        dailyRentPrice: Number(dailyRentPrice),
+        description,
+        availabilityStatus,
+        imageUrl,
+        carType,
+        pickupLocation,
+      };
+
+      const result = await carsCollection.updateOne(
+        {
+          _id: new ObjectId(req.params.id),
+          userId: req.user.sub,
+        },
+        {
+          $set: updateData,
+        },
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({
+          message: "Car not found or you don't own this car",
+        });
+      }
+
+      res.json({ message: "Car updated successfully" });
+    } catch (error) {
+      console.error("Update car error:", error);
+      res.status(500).json({ message: "Failed to update car" });
+    }
+  });
+
+  app.delete("/cars/:id", verifyToken, async (req, res) => {
+    try {
+      if (!ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ message: "Invalid car ID" });
+      }
+
+      const result = await carsCollection.deleteOne({
+        _id: new ObjectId(req.params.id),
+        userId: req.user.sub,
+      });
+
+      if (result.deletedCount === 0) {
+        return res.status(404).json({
+          message: "Car not found or you don't own this car",
+        });
+      }
+
+      res.json({ message: "Car deleted successfully" });
+    } catch (error) {
+      console.error("Delete car error:", error);
+      res.status(500).json({ message: "Failed to delete car" });
     }
   });
 
@@ -163,8 +256,4 @@ run().catch(console.dir);
 
 app.get("/", (req, res) => {
   res.send("Hello, World!");
-});
-
-app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
 });
