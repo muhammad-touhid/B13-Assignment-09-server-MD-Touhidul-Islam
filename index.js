@@ -191,10 +191,13 @@ async function run() {
     }
   });
 
-  app.get("/bookings/:userId", async (req, res) => {
+  app.get("/bookings/:userId", verifyToken, async (req, res) => {
     try {
+      if (req.params.userId !== req.user.sub) {
+        return res.status(403).json({ message: "Forbidden access" });
+      }
       const bookings = await bookingsCollection
-        .find({ userId: req.params.userId })
+        .find({ userId: req.user.sub })
         .toArray();
 
       res.json(bookings);
@@ -204,22 +207,31 @@ async function run() {
     }
   });
 
-  app.delete("/bookings/:userId", async (req, res) => {
+  app.delete("/bookings/:id", verifyToken, async (req, res) => {
     try {
+      if (!ObjectId.isValid(req.params.id)) {
+        return res.status(400).json({ message: "Invalid booking ID" });
+      }
       const result = await bookingsCollection.deleteOne({
-        userId: req.params.userId,
+        _id: new ObjectId(req.params.id),
+        userId: req.user.sub,
       });
 
       res.json(result);
     } catch (error) {
       console.error("Delete booking error:", error);
-      res.status(500).json({ message: "Failed to delete booking" });
+      res.status(500).json({ message: "Failed to cancel booking" });
     }
   });
 
   app.post("/bookings", verifyToken, async (req, res) => {
     try {
-      const result = await bookingsCollection.insertOne(req.body);
+      const bookingData = {
+        ...req.body,
+        userId: req.user.sub,
+      };
+
+      const result = await bookingsCollection.insertOne(bookingData);
       res.json(result);
     } catch (error) {
       console.error("Create booking error:", error);
