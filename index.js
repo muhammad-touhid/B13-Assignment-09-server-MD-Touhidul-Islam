@@ -69,8 +69,16 @@ async function run() {
 
   app.get("/cars", async (req, res) => {
     try {
-      const cars = await carsCollection.find({}).toArray();
-      res.json(cars);
+      const { search, type } = req.query;
+      let query = {};
+      if (search) {
+        query.carName = { $regex: search, $options: "i" };
+      }
+      if (type && type !== "All") {
+        query.carType = type;
+      }
+      const cars = await carsCollection.find(query).toArray();
+      res.send(cars);
     } catch (error) {
       console.error("Fetch cars error:", error);
       res.status(500).json({ message: "Failed to fetch cars" });
@@ -231,7 +239,17 @@ async function run() {
         userId: req.user.sub,
       };
 
+      // Save booking
       const result = await bookingsCollection.insertOne(bookingData);
+
+      // Increase car booking count
+      await carsCollection.updateOne(
+        { _id: new ObjectId(bookingData.carId) },
+        {
+          $inc: { booking_count: 1 },
+        },
+      );
+
       res.json(result);
     } catch (error) {
       console.error("Create booking error:", error);
